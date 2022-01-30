@@ -2,9 +2,9 @@
 Find the optimal starting guess for Wordle, by some metric (see below). Takes about 25
 minutes on an old Macbook Pro.
 
-We know the list of allowed words (wordlist.txt) and solutions (solutions.txt). Then by
+We know the lists of allowed words (wordlist.txt) and solutions (solutions.txt). Then by
 making a guess we restrict the potential solutions to a subset. We want to choose a
-starting guess for which the expectation length of this subset is the shortest possible.
+starting guess for which the expected size of this subset is the smallest possible.
 """
 
 import numpy as np
@@ -35,17 +35,18 @@ solns = load_words_as_array_of_int('solutions.txt')
 NW = len(wlist)
 NS = len(solns)
 
-# For speedup, for each possible solution we precompute characters present in it
+# For speedup, for each possible solution we precompute characters present in it (one hot
+# encoding)
 letters_present = np.zeros((NS, NCHAR), dtype = 'bool')
 for i, sol in enumerate(solns):
     for lett in sol:
         letters_present[i, lett] = True
 
-def get_num_compatible(wpick, spick):
+def get_num_compatible(guess, true_sol):
     """
-    Given wpick and spick (arrays of integers of lenght WLEN) representing our first guess
-    and the true solution, calculate how many of the allowed solutions lead to the same
-    gray-green-yellow pattern as the true solution.
+    Given guess and true_sol (arrays of integers of lenght WLEN) representing our first
+    guess and a true solution, calculate how many of the candidate solutions are
+    compatible with the gray-green-yellow pattern revealed by our first guess.
     """
 
     # Start with all solutions being allowed
@@ -54,28 +55,29 @@ def get_num_compatible(wpick, spick):
     # Go through the letters
     for i in range(WLEN):
 
-        # i-th letter is green -> only pick solutions where this letter is green
-        if wpick[i] == spick[i]:
-            filt *= (solns[:, i] == spick[i])
+        # i-th letter is green -> only pick solutions with the same i-th letter
+        if guess[i] == true_sol[i]:
+            filt *= (solns[:, i] == true_sol[i])
         else:
-            # i-th letter is yellow
-            if np.count_nonzero(wpick[i] == spick):
-                filt *= letters_present[:, wpick[i]]
-            # i-th letter is gray
+            # i-th letter is yellow -> this letter must be present in the solution
+            if np.count_nonzero(guess[i] == true_sol):
+                filt *= letters_present[:, guess[i]]
+            # i-th letter is gray -> this letter must be absent in the solution
             else:
-                filt *= np.logical_not(letters_present[:, wpick[i]])
+                filt *= np.logical_not(letters_present[:, guess[i]])
 
     # Count the number of compatible solutions
     return np.sum(filt)
 
 
-# For a given initial guess, for each possible solution calculate how many solutions in
-# total have the same signature when compared agains this initial guess
+# For a given initial guess, for each possible solution calculate how many solutions are
+# still allowed after revealing the first green-yellow-gray pattern
 remaining = np.zeros(NS, dtype = int)
 
-# For each initial guess, the expected number of solutions remaining after this guess
+# For each initial guess, the expected number of solutions remaining after the first guess
 remaining_ev = np.zeros(NW)
 
+# To monitor the improvement
 best = 1000
 
 # Cycle through the initial guesses
