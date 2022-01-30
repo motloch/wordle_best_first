@@ -46,16 +46,13 @@ def get_num_compatible(wpick, spick):
             filt *= (solns[:, i] == spick[i])
         else:
             #Otherwise check for appearance of the given letter in the solution
-            num_appear = np.sum(spick == wpick[i])
-            if num_appear > 0:
-                filt *= letters_present[:, wpick[i]] == 1
+            if np.count_nonzero(wpick[i] == spick):
+                filt *= letters_present[:, wpick[i]]
             else:
-                filt *= letters_present[:, wpick[i]] == 0
+                filt *= np.logical_not(letters_present[:, wpick[i]])
 
     return np.sum(filt)
 
-wpick = wlist[0]
-spick = solns[1]
 expected_remaining = np.zeros(NW)
 remaining = np.zeros(NS, dtype = int)
 
